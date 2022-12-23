@@ -1,33 +1,65 @@
-import { Request, Response } from "express";
+import { Request, RequestHandler, Response } from "express";
 import { StatusCodes } from "http-status-codes";
 import * as yup from "yup";
+import { validation } from "../../shared/middlewares";
 
 interface ICidade {
   nome: string;
   state: string;
 }
 
-const yupValidation: yup.SchemaOf<ICidade> = yup.object().shape({
+const bodyValidation: yup.SchemaOf<ICidade> = yup.object().shape({
   nome: yup.string().required().min(3),
-  state: yup.string().required()
+  state: yup.string().required(),
 });
 
-export const create = async (req: Request<{}, {}, ICidade>, res: Response) => {
-  let validatedData: ICidade | undefined = undefined;
+interface IFilter {
+  filter?: string;
+}
+
+const filterValidation: yup.SchemaOf<IFilter> = yup.object().shape({
+  filter: yup.string().required().min(3),
+});
+
+export const createBodyValidation: RequestHandler = async (req, res, next) => {
   try {
-    validatedData = await yupValidation.validate(req.body, { abortEarly: false });
+    await bodyValidation.validate(req.body, { abortEarly: false });
+    return next();
   } catch (error) {
     const yupError = error as yup.ValidationError;
     const validationError: Record<string, string> = {};
 
-    yupError.inner.forEach(error => {
-      if(!error.path) return;
+    yupError.inner.forEach((error) => {
+      if (!error.path) return;
       validationError[error.path] = error.message;
     });
 
-    return res.status(StatusCodes.BAD_REQUEST).json({
-      errors: validationError
-    }); 
+    return res.status(StatusCodes.BAD_REQUEST).json({ validationError });
   }
-  console.log(validatedData); 
+};
+
+export const createQueryValidation: RequestHandler = async (req, res, next) => {
+  try {
+    await filterValidation.validate(req.query, { abortEarly: false });
+    return next();
+  } catch (error) {
+    const yupError = error as yup.ValidationError;
+    const validationError: Record<string, string> = {};
+
+    yupError.inner.forEach((error) => {
+      if (!error.path) return;
+      validationError[error.path] = error.message;
+    });
+
+    return res.status(StatusCodes.BAD_REQUEST).json({ validationError });
+  }
+};
+
+export const createValidation = validation();
+
+export const create: RequestHandler = async (
+  req: Request<{}, {}, ICidade>,
+  res: Response
+) => {
+  res.send("Criado");
 };
